@@ -1,5 +1,5 @@
 ﻿import {printError, printInfo, printSuccess} from "./logPrinter";
-import {gnosis, mainnet} from "viem/chains";
+import {gnosis} from "viem/chains";
 import {
     createPublicClient,
     createWalletClient,
@@ -11,6 +11,13 @@ import {
 import {Config} from "./config";
 import {gdaMintPrice, superFluidContractAddress} from "./superFluidData";
 import {superFluidABI} from "./superFluidABI";
+import {erc20ABI} from "./erc20";
+import {connectPoolABI} from "./connectPool";
+import {delay} from "./delayer";
+
+const tokenPoolAddress = '0xe3Cb3C990429a06012bf377ec5BBeB9A6cE25309'
+
+const contractAddress = '0x6da13bde224a05a288748d857b9e7ddeffd1de08'
 
 export async function claimNFT(account: PrivateKeyAccount) {
     printInfo(`Выполняю модуль SuperFluid Gda Mint`);
@@ -19,6 +26,20 @@ export async function claimNFT(account: PrivateKeyAccount) {
         chain: gnosis,
         transport: Config.gnosisRpc == '' ? http() : http(Config.gnosisRpc),
     });
+
+    const nftBalance = await client.readContract({
+        address: <`0x${string}`>superFluidContractAddress,
+        abi: erc20ABI,
+        functionName: 'balanceOf',
+        args: [account.address],
+    });
+
+    console.log(nftBalance)
+    if (nftBalance != BigInt(0)) {
+        printInfo(`Нфт присутсвутет на аккаунте, буду выполнять Claim Stream`)
+        await connectPool(account)
+        return true;
+    }
 
     printInfo(`Вызываю функцию Gda Mint по цене ${formatUnits(gdaMintPrice, 18)} xDAI`);
 
@@ -43,6 +64,56 @@ export async function claimNFT(account: PrivateKeyAccount) {
             functionName: 'gdaMint',
             account: account,
             value: gdaMintPrice
+        })
+        .then((result) => result as SimulateContractReturnType)
+        .catch((e) => {
+            printError(`Произошла ошибка во время выполнения модуля SuperFluid - ${e}`);
+            return {request: undefined};
+        });
+
+    if (request !== undefined) {
+        const hash = await walletClient.writeContract(request).catch((e) => {
+            printError(`Произошла ошибка во время выполнения модуля SuperFluid - ${e}`);
+            return false;
+        });
+
+        if (hash == false) {
+            return false;
+        }
+
+        const url = `${`https://gnosisscan.io/tx/` + hash}`;
+
+        printSuccess(`Транзакция успешно отправлена. Хэш транзакции: ${url}\n`);
+
+        await delay(Config.delayBetweenModules.min,Config.delayBetweenModules.max, true)
+        await connectPool(account)
+    }
+
+    return true;
+}
+
+export async function connectPool(account: PrivateKeyAccount) {
+    printInfo(`Выполняю модуль SuperFluid Connect Pool`);
+
+    const client = createPublicClient({
+        chain: gnosis,
+        transport: Config.gnosisRpc == '' ? http() : http(Config.gnosisRpc),
+    });
+
+    printInfo(`Вызываю функцию Connect Pool`);
+
+    const walletClient = createWalletClient({
+        chain: gnosis,
+        transport: Config.gnosisRpc == '' ? http() : http(Config.gnosisRpc),
+    });
+
+    const {request} = await client
+        .simulateContract({
+            address: contractAddress,
+            abi: connectPoolABI,
+            functionName: 'connectPool',
+            account: account,
+            args: [tokenPoolAddress, '0x']
         })
         .then((result) => result as SimulateContractReturnType)
         .catch((e) => {
