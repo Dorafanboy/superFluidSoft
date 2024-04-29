@@ -4,6 +4,7 @@
     "start": "ts-node index.ts"
   },
   "dependencies": {
+    "ts-node": "^10.9.2",
     "viem": "^1.19.13",
     "winston": "^3.13.0"
   },
