@@ -37,8 +37,8 @@ export async function claimNFT(account: PrivateKeyAccount) {
     console.log(nftBalance)
     if (nftBalance != BigInt(0)) {
         printInfo(`Нфт присутсвутет на аккаунте, буду выполнять Claim Stream`)
-        await connectPool(account)
-        return true;
+        const result = await connectPool(account)
+        return result;
     }
 
     printInfo(`Вызываю функцию Gda Mint по цене ${formatUnits(gdaMintPrice, 18)} xDAI`);
@@ -94,11 +94,23 @@ export async function claimNFT(account: PrivateKeyAccount) {
 
 export async function connectPool(account: PrivateKeyAccount) {
     printInfo(`Выполняю модуль SuperFluid Connect Pool`);
-
+    
     const client = createPublicClient({
         chain: gnosis,
         transport: Config.gnosisRpc == '' ? http() : http(Config.gnosisRpc),
     });
+
+    const isMemberConnected = await client.readContract({
+        address: <`0x${string}`>contractAddress,
+        abi: connectPoolABI,
+        functionName: 'isMemberConnected',
+        args: [tokenPoolAddress, account.address],
+    });
+    
+    if (isMemberConnected) {
+        printInfo(`Пользователь уже подключен к пулу, выполнять connectPool не буду`)
+        return false;
+    }
 
     printInfo(`Вызываю функцию Connect Pool`);
 

@@ -9,3 +9,8 @@ export class Config {
 export class SuperFluidConfig {
     public static readonly isUse: boolean = true; // использовать ли скрипт
 }
+
+export class SuperFluidUnwrapNative {
+    public static readonly isUnwrapAll: boolean = true; // выводить весь xDAI, если false, то будет браться процент из переменной percentUnwrap
+    public static readonly percentUnwrap: IDelayRange = { min: 70, max: 80 }; // сколько процентов unwrap'aть из накопленного
+}

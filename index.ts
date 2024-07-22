@@ -6,6 +6,7 @@ import {claimNFT} from "./superfluid";
 import {IFunction} from "./interfaces";
 import {printError, printInfo, printSuccess} from "./logPrinter";
 import {delay} from "./delayer";
+import {unwrapNative} from "./unwrapNative";
 
 let account;
 
@@ -50,8 +51,13 @@ async function main() {
 
             const randomFunction = filteredFunctions[Math.floor(Math.random() * filteredFunctions.length)];
 
-            await randomFunction(account);
+            const result = await randomFunction(account);
+            
+            if (result == true) {
+                await delay(Config.delayBetweenModules.min, Config.delayBetweenModules.max, true)
+            }
 
+            await unwrapNative(account)
             printSuccess(`Ended [${index + 1}/${count} - ${account.address}]\n`);
 
             index++;
